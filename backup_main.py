@@ -509,10 +509,32 @@ def get_hubcloud_download_link(url, headers):
                     
                     print("\nAvailable Download Links:")
                     print("-" * 50)
-                    for title, link in download_links.items():
-                        print(f"{title}: {link}")
+                    for idx, (title, link) in enumerate(download_links.items(), 1):
+                        print(f"{idx}. {title}")
+                        print(f"   {link}")
+                    print("-" * 50)
                     
-                    return download_links
+                    while True:
+                        selection = input("\nEnter the number of the link you want to download (or 'b' to return): ").strip()
+                        
+                        if selection.lower() == 'b':
+                            return None
+                            
+                        try:
+                            selection_idx = int(selection)
+                            if 1 <= selection_idx <= len(download_links):
+                                selected_title = list(download_links.keys())[selection_idx - 1]
+                                selected_link = download_links[selected_title]
+                                dict_selected_link = { selected_title: selected_link }
+                                processed_link = process_links(dict_selected_link)
+                                print(f"\nYou selected:")
+                                print(f"Server: {selected_title}")
+                                print(f"Link: {processed_link}")
+                                return processed_link
+                            else:
+                                print("Invalid selection! Please enter a valid number.")
+                        except ValueError:
+                            print("Please enter a valid number!")
         
         print("Could not find final download URL")
         return None
@@ -555,10 +577,32 @@ def get_hubcloud_download_link_for_episode(url, headers):
             
             print("\nAvailable Download Links:")
             print("-" * 50)
-            for title, link in download_links.items():
-                print(f"{title}: {link}")
+            for idx, (title, link) in enumerate(download_links.items(), 1):
+                print(f"{idx}. {title}")
+                print(f"   {link}")
+            print("-" * 50)
             
-            return download_links
+            while True:
+                selection = input("\nEnter the number of the link you want to download (or 'b' to return): ").strip()
+                
+                if selection.lower() == 'b':
+                    return None
+                    
+                try:
+                    selection_idx = int(selection)
+                    if 1 <= selection_idx <= len(download_links):
+                        selected_title = list(download_links.keys())[selection_idx - 1]
+                        selected_link = download_links[selected_title]
+                        dict_selected_link = { selected_title: selected_link }
+                        processed_link = process_links(dict_selected_link)
+                        print(f"\nYou selected:")
+                        print(f"Server: {selected_title}")
+                        print(f"Link: {processed_link}")
+                        return processed_link
+                    else:
+                        print("Invalid selection! Please enter a valid number.")
+                except ValueError:
+                    print("Please enter a valid number!")
         
         scripts = soup.find_all('script')
         for script in scripts:
@@ -581,10 +625,32 @@ def get_hubcloud_download_link_for_episode(url, headers):
                     
                     print("\nAvailable Download Links:")
                     print("-" * 50)
-                    for title, link in download_links.items():
-                        print(f"{title}: {link}")
+                    for idx, (title, link) in enumerate(download_links.items(), 1):
+                        print(f"{idx}. {title}")
+                        print(f"   {link}")
+                    print("-" * 50)
                     
-                    return download_links
+                    while True:
+                        selection = input("\nEnter the number of the link you want to download (or 'b' to return): ").strip()
+                        
+                        if selection.lower() == 'b':
+                            return None
+                            
+                        try:
+                            selection_idx = int(selection)
+                            if 1 <= selection_idx <= len(download_links):
+                                selected_title = list(download_links.keys())[selection_idx - 1]
+                                selected_link = download_links[selected_title]
+                                dict_selected_link = { selected_title: selected_link }
+                                processed_link = process_links(dict_selected_link)
+                                print(f"\nYou selected:")
+                                print(f"Server: {selected_title}")
+                                print(f"Link: {processed_link}")
+                                return processed_link
+                            else:
+                                print("Invalid selection! Please enter a valid number.")
+                        except ValueError:
+                            print("Please enter a valid number!")
         
         print("Could not find final download URL")
         return None
@@ -592,7 +658,81 @@ def get_hubcloud_download_link_for_episode(url, headers):
     except Exception as e:
         print(f"Error getting final download link: {e}")
         return None
+
+def process_links(download_links):
+    """
+    Process a single download link based on its type and return the processed link
     
+    Args:
+        download_links (dict): Dictionary containing a single download link with title as key
+        
+    Returns:
+        str: Processed download link
+    """
+    title, link = next(iter(download_links.items()))
+    
+    if "FSL Server" in title or "PixelServer" in title:
+        return link
+        
+    elif "BuzzServer" in title:
+        return link + "/download"
+        
+    elif "Server : 10Gbps" in title:
+        try:
+            return _10gbps_link(link)
+        except Exception as e:
+            print(f"Error processing 10Gbps link: {e}")
+            return None
+            
+    elif "Telegram" in title:
+        try:
+            return telegram_link(link)
+        except Exception as e:
+            print(f"Error processing Telegram link: {e}")
+            return None
+            
+    else:
+        return link
+
+def _10gbps_link(link):
+    try:
+        response = requests.get(link)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+        div = soup.find('div', class_='vd')
+        a_tag = div.find('a') if div else None
+        download_link = a_tag.get('href') if a_tag else None
+        return download_link
+    except Exception as e:
+        print(f"Error processing 10Gbps link: {e}")
+        return None
+
+def telegram_link(link):
+    try:
+        response = requests.get(link)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+        meta_refresh = soup.find('meta', attrs={'http-equiv': 'refresh'})
+        if meta_refresh:
+            content = meta_refresh.get('content')
+            url = content.split('url=')[1] if 'url=' in content else None
+            response = requests.get(url)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.content, 'html.parser')
+            script = soup.find('script')
+            if script and script.string:
+                script_text = script.string
+                if 'reurl = "' in script_text:
+                    start = script_text.find('reurl = "') + 9
+                    end = script_text.find('"', start)
+                    reurl = script_text[start:end]
+                    return reurl
+            return None
+        return None
+    except Exception as e:
+        print(f"Error processing Telegram link: {e}")
+        return None
+
 def main():
     while True:
         query = input("\nEnter movie/show to search (or 'q' to exit): ").strip()
